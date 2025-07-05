@@ -16,7 +16,7 @@ contract FundMe {
   uint256 constant MINIMUM_VALUE = 100 * 10**18;
 
   // 如何将 MINIMUM_VALUE 设置成 USD 同步的价格
-  AggregatorV3Interface internal dataFeed;
+  AggregatorV3Interface public dataFeed;
 
   // 设定目标值。 constant 修饰 target 为常量。
   uint256 constant TARGET = 1000 * 10**18;
