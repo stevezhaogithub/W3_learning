@@ -9,106 +9,109 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 // 4. 在锁定期内，未达目标值：投资人可以退款
 
 contract FundMe {
-  // 记录投资人信息（地址、金额）
-  mapping(address => uint256) public fundersToAmount;
+    // 记录投资人信息（地址、金额）
+    mapping(address => uint256) public fundersToAmount;
 
-  // 设置最小额度(此处使用的单位是Wei，1Eth = 10^18 Wei）
-  uint256 constant MINIMUM_VALUE = 100 * 10**18;
+    // 设置最小额度(此处使用的单位是Wei，1Eth = 10^18 Wei）
+    uint256 constant MINIMUM_VALUE = 100 * 10 ** 18;
 
-  // 如何将 MINIMUM_VALUE 设置成 USD 同步的价格
-  AggregatorV3Interface public dataFeed;
+    // 如何将 MINIMUM_VALUE 设置成 USD 同步的价格
+    AggregatorV3Interface public dataFeed;
 
-  // 设定目标值。 constant 修饰 target 为常量。
-  uint256 constant TARGET = 1000 * 10**18;
+    // 设定目标值。 constant 修饰 target 为常量。
+    uint256 constant TARGET = 1000 * 10 ** 18;
 
-  // 设定合约的拥有者
-  address public owner;
+    // 设定合约的拥有者
+    address public owner;
 
-  // 在构造函数中初始化这两个变量
-  // 时间戳: 从什么时间开始锁定，合约部署的时间点
-  uint256 deploymentTimestamp;
-  // 该合约要锁定多长时间：锁定时长（单位：秒）
-  uint256 lockTime;
+    // 在构造函数中初始化这两个变量
+    // 时间戳: 从什么时间开始锁定，合约部署的时间点
+    uint256 deploymentTimestamp;
+    // 该合约要锁定多长时间：锁定时长（单位：秒）
+    uint256 lockTime;
 
-  // 声明一个变量，用来存储 将来ERC20合约的地址
-  address erc20Addr;
+    // 声明一个变量，用来存储 将来ERC20合约的地址
+    address erc20Addr;
 
-  // 标记已经成功调用 getFund() 函数了
-  bool public getFundSuccess = false;
+    // 标记已经成功调用 getFund() 函数了
+    bool public getFundSuccess = false;
 
-  // Solidity 中没有 Date、DateTime类型
+    // Solidity 中没有 Date、DateTime类型
 
-  // 构造函数：在合约部署的时候执行一次，以后再也不会执行
-  constructor(uint256 _lockTime) {
-    // 获取合约部署人的地址 msg.sender
-    owner = msg.sender;
-    // 0x694AA1769357215DE4FAC081bf1f309aDC325306
-    // Sepolia Testnet
-    dataFeed = AggregatorV3Interface(
-      0x694AA1769357215DE4FAC081bf1f309aDC325306
-    );
-    // 此处的 block 表示部署该合约这个交易所在的区块。
-    deploymentTimestamp = block.timestamp;
-    // 通过构造函数设置锁定时长
-    lockTime = _lockTime;
-  }
+    // 当 fund 被 owner 提取的时候会触发该事件
+    event FundWithDrawByOwner(uint256);
 
-  // 1. 收款函数
-  // payable: 合约要想接受原生通证，就必须使用 payable 关键字
-  function fund() external payable {
-    // condition 如果是 false,交易会被 revert
-    // require(condition, "");
-    // msg.value 表示数量
-    require(convertEthToUsd(msg.value) >= MINIMUM_VALUE, "send more ETH");
+    event RefundByFunder(address, uint256);
 
-    // 这里的 block 表示是进行 fund() 交易的时候所在的区块
-    require(
-      block.timestamp < deploymentTimestamp + lockTime,
-      "window is closed."
-    );
+    // 构造函数：在合约部署的时候执行一次，以后再也不会执行
+    constructor(uint256 _lockTime) {
+        // 获取合约部署人的地址 msg.sender
+        owner = msg.sender;
+        // 0x694AA1769357215DE4FAC081bf1f309aDC325306
+        // Sepolia Testnet
+        dataFeed = AggregatorV3Interface(
+            0x694AA1769357215DE4FAC081bf1f309aDC325306
+        );
+        // 此处的 block 表示部署该合约这个交易所在的区块。
+        deploymentTimestamp = block.timestamp;
+        // 通过构造函数设置锁定时长
+        lockTime = _lockTime;
+    }
 
-    // 记录投资人的投资金额
-    fundersToAmount[msg.sender] = msg.value;
-  }
+    // 1. 收款函数
+    // payable: 合约要想接受原生通证，就必须使用 payable 关键字
+    function fund() external payable {
+        // condition 如果是 false,交易会被 revert
+        // require(condition, "");
+        // msg.value 表示数量
+        require(convertEthToUsd(msg.value) >= MINIMUM_VALUE, "send more ETH");
 
-  /**
+        // 这里的 block 表示是进行 fund() 交易的时候所在的区块
+        require(
+            block.timestamp < deploymentTimestamp + lockTime,
+            "window is closed."
+        );
+
+        // 记录投资人的投资金额
+        fundersToAmount[msg.sender] = msg.value;
+    }
+
+    /**
      * Returns the latest answer.
      */
-  function getChainlinkDataFeedLatestAnswer() public view returns (int256) {
-    // prettier-ignore
-    (
+    function getChainlinkDataFeedLatestAnswer() public view returns (int256) {
+        // prettier-ignore
+        (
       /* uint80 roundId */,
       int256 answer,
       /*uint256 startedAt*/,
       /*uint256 updatedAt*/,
       /*uint80 answeredInRound*/
     ) = dataFeed.latestRoundData();
-    // answer 表示 ETH 对 USD 的价格
-    return answer;
-  }
+        // answer 表示 ETH 对 USD 的价格
+        return answer;
+    }
 
-  function convertEthToUsd(uint256 ethAmount)
-  internal
-  view
-  returns (uint256)
-  {
-    uint256 ethPrice = uint256(getChainlinkDataFeedLatestAnswer());
-    return (ethAmount * ethPrice) / (10**8);
+    function convertEthToUsd(
+        uint256 ethAmount
+    ) internal view returns (uint256) {
+        uint256 ethPrice = uint256(getChainlinkDataFeedLatestAnswer());
+        return (ethAmount * ethPrice) / (10 ** 8);
 
-    // 此处的 ethAmount 是以 Wei 为单位的
-    // ethPrice :
-    // ETH / USD precision 为 10**8
-  }
+        // 此处的 ethAmount 是以 Wei 为单位的
+        // ethPrice :
+        // ETH / USD precision 为 10**8
+    }
 
-  // 获取资产:3. 在锁定期内，达到目标值：生产商可以提款；
-  function getFund() external onlyOwner windowsClosed {
-    // this 表示当前合约。
-    // address(this)，表示获取当前合约地址
-    // address(this).balance, 表示获取当前合约余额
-    // address(this).balance 获取的余额单位是：Wei
-    require(
-      convertEthToUsd(address(this).balance) >= TARGET,
-      "revert: target is not reached."
+    // 获取资产:3. 在锁定期内，达到目标值：生产商可以提款；
+    function getFund() external onlyOwner windowsClosed {
+        // this 表示当前合约。
+        // address(this)，表示获取当前合约地址
+        // address(this).balance, 表示获取当前合约余额
+        // address(this).balance 获取的余额单位是：Wei
+        require(
+            convertEthToUsd(address(this).balance) >= TARGET,
+            "revert: target is not reached."
         );
 
         // 1. transfer 转账: 合约里面的钱转到了 owner 账户
@@ -123,7 +126,8 @@ contract FundMe {
         // call 函数基本用法：
         // (bool, result) = addr.call{value: value}("");
         bool succ;
-        (succ, ) = payable(msg.sender).call{value: address(this).balance}("");
+        uint256 balance = address(this).balance;
+        (succ, ) = payable(msg.sender).call{value: balance}("");
 
         require(succ, "transfer tx failed.");
 
@@ -131,6 +135,9 @@ contract FundMe {
         fundersToAmount[msg.sender] = 0;
 
         getFundSuccess = true;
+
+        // emit event
+        emit FundWithDrawByOwner(balance);
     }
 
     // 转移所有权
@@ -156,21 +163,24 @@ contract FundMe {
         uint256 amount = fundersToAmount[msg.sender];
         require(amount != 0, "there is no fund for you.");
 
+        uint256 balance = fundersToAmount[msg.sender];
+
         // 执行退款操作
         bool succ;
-        (succ, ) = payable(msg.sender).call{value: fundersToAmount[msg.sender]}(
-            ""
-        );
+        (succ, ) = payable(msg.sender).call{value: balance}("");
 
         // refund 后要清零。
         fundersToAmount[msg.sender] = 0;
         require(succ, "transfer tx failed.");
+
+        emit RefundByFunder(msg.sender, balance);
     }
 
     // 更新 fundersToAmount
-    function setFunderToAmount(address _funder, uint256 _amountToUpdate)
-        external
-    {
+    function setFunderToAmount(
+        address _funder,
+        uint256 _amountToUpdate
+    ) external {
         require(
             msg.sender == erc20Addr,
             "You do not have permission to call this function."
@@ -179,11 +189,9 @@ contract FundMe {
     }
 
     // getter方法
-    function getFundersToAmount(address _funder)
-        external
-        view
-        returns (uint256)
-    {
+    function getFundersToAmount(
+        address _funder
+    ) external view returns (uint256) {
         return fundersToAmount[_funder];
     }
 

@@ -3,6 +3,9 @@ require("dotenv").config();
 require("./tasks/deploy-fundme")
 require("./tasks/interact-fundme")
 require("hardhat-deploy")
+require("@nomicfoundation/hardhat-ethers");
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
 
 
 const SEPOLIA_URL = process.env.SEPOLIA_URL;
