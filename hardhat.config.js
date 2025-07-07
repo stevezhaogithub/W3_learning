@@ -16,6 +16,10 @@ const PRIVATE_KEY_1 = process.env.PRIVATE_KEY_1;
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.28",
+  defaultNetwork: "hardhat",
+  mocha: {
+    timeout: 300000 // 总的测试时长不超过 300 秒
+  },
   networks: {
     sepolia: {
       url: SEPOLIA_URL,
